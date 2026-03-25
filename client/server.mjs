@@ -198,6 +198,89 @@ server.tool(
   }
 );
 
+// === TOOL: Search plugin/theme across all sites ========================
+server.tool(
+  "search_plugin",
+  "Find which sites have a specific plugin or theme installed. Shows version, active status, and whether an update is available.",
+  {
+    search: z.string().describe("Plugin or theme name/slug to search for (e.g. 'woocommerce', 'yoast')"),
+    type: z.enum(["plugin", "theme"]).optional().describe("Search for plugins or themes (default: plugin)"),
+  },
+  async ({ search, type }) => {
+    const matches = await api("search-plugin", { search, type: type || "plugin" });
+
+    if (!matches.length) {
+      return { content: [{ type: "text", text: `No ${type || "plugin"} found matching "${search}" on any site.` }] };
+    }
+
+    const lines = matches.map((m) => {
+      const status = m.isActive ? "active" : "inactive";
+      const update = m.hasUpdate ? ` -> **${m.newVersion}** available` : "";
+      return `| ${m.siteName} | ${m.name} | ${m.version}${update} | ${status} |`;
+    });
+
+    const summary = `Found "${search}" on **${matches.length}** site(s). Updates available: **${matches.filter((m) => m.hasUpdate).length}**`;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `## ${type || "Plugin"} search: "${search}"\n\n${summary}\n\n| Site | Name | Version | Status |\n|------|------|---------|--------|\n${lines.join("\n")}`,
+        },
+      ],
+    };
+  }
+);
+
+// === TOOL: Bulk update =================================================
+server.tool(
+  "bulk_update",
+  "Update plugins/themes/core across multiple sites at once. Can target specific slugs or exclude certain ones.",
+  {
+    sites: z.array(z.string()).describe("Site names, URLs, or IDs to update"),
+    type: z.enum(["plugins", "themes", "core", "translations", "all"]).describe("What to update"),
+    slugs: z.array(z.string()).optional().describe("Only update these specific plugin/theme slugs"),
+    exclude: z.array(z.string()).optional().describe("Skip these plugin/theme slugs"),
+  },
+  async ({ sites: siteQueries, type, slugs, exclude }) => {
+    // Resolve site names/URLs to IDs
+    const allSites = await api("sites");
+    const resolvedIds = [];
+    const notFound = [];
+
+    for (const q of siteQueries) {
+      const ql = q.toLowerCase();
+      const match = allSites.find(
+        (s) =>
+          String(s.id) === q ||
+          (s.name || "").toLowerCase().includes(ql) ||
+          (s.url || "").toLowerCase().includes(ql)
+      );
+      if (match) resolvedIds.push(match.id);
+      else notFound.push(q);
+    }
+
+    if (!resolvedIds.length) {
+      return { content: [{ type: "text", text: `No matching sites found for: ${siteQueries.join(", ")}` }] };
+    }
+
+    const result = await api("bulk-update", {}, "POST", {
+      siteIds: resolvedIds,
+      type,
+      slugs: slugs || [],
+      exclude: exclude || [],
+    });
+
+    const lines = (result.results || []).map((r) => `### ${r.siteName}\n\`\`\`\n${r.output || "Started"}\n\`\`\``);
+    let text = `## Bulk update (${type}) — ${resolvedIds.length} site(s)\n\n${lines.join("\n\n")}`;
+    if (notFound.length) {
+      text += `\n\n**Not found:** ${notFound.join(", ")}`;
+    }
+
+    return { content: [{ type: "text", text }] };
+  }
+);
+
 // === TOOL: Site history ================================================
 server.tool(
   "site_history",
