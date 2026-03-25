@@ -1,18 +1,40 @@
 # InfiniteWP MCP Server
 
-Manage all your WordPress sites through AI chat. This project adds an **MCP (Model Context Protocol) server** on top of [InfiniteWP](https://infinitewp.com), giving AI assistants like Claude the ability to view sites, run updates, manage schedules, and generate reports -- all through natural conversation.
+Manage all your WordPress sites through AI chat. This project adds an **MCP (Model Context Protocol) server** on top of [InfiniteWP](https://infinitewp.com), giving AI assistants like Claude, Cursor, VS Code Copilot, and others the ability to view sites, trigger updates, query history, and more — all through natural conversation.
+
+## What Can You Do With It?
+
+Talk to your AI assistant in plain language:
+
+- *"Which sites have pending updates?"*
+- *"Update all plugins on example.com"*
+- *"When was WooCommerce last updated on mysite.nl?"*
+- *"Exclude WooCommerce from automatic updates"*
+- *"Show me the latest client report for mysite.nl"*
+- *"Give me a dashboard overview"*
 
 ## Features
 
-- **Dashboard** -- overview of all sites, pending updates, active schedules
-- **Site management** -- list sites, view details, search by name or URL
-- **Update execution** -- update plugins, themes, core, or translations on any site
-- **Scheduled updates** -- create cron-based schedules with day/time selection
-- **Minimum update age** -- skip brand-new releases, only install updates that have been available for N hours
-- **Exception management** -- exclude specific plugins/themes from auto-updates (globally or per-site)
-- **Update history** -- full log of every update with status tracking
-- **IWP history search** -- query the native IWP update history (e.g. "when was WooCommerce last updated on site X?")
-- **Client reports** -- retrieve IWP-generated Phoenix template reports
+**Read from IWP:**
+- Dashboard overview of all sites, pending updates, and exceptions
+- List and search sites by name or URL
+- View available plugin, theme, and core updates per site
+- Query IWP's native update history (e.g. "when was WooCommerce updated on site X?")
+- Retrieve IWP-generated client reports (Phoenix template)
+
+**Write to IWP:**
+- Trigger plugin, theme, core, or translation updates on any site
+- Updates are executed through IWP's own pipeline (signed requests, execute.php)
+- Add or remove update exceptions (globally or per site)
+
+**Scheduled updates** (optional server-side feature):
+- The server component includes a cron-based scheduler that can run updates automatically
+- Configurable per-schedule: which sites, which update types, which days/times
+- Minimum update age: skip updates released less than N hours ago (avoid day-one bugs)
+- Exception support: excluded plugins/themes are never auto-updated
+- Execution log with status tracking per update
+
+> Note: The scheduler is a server-side addition — IWP itself does not have built-in scheduled updates. It requires a cron job on your server (see Installation).
 
 ## Architecture
 
@@ -39,24 +61,26 @@ Manage all your WordPress sites through AI chat. This project adds an **MCP (Mod
                                                     +-------------+
 ```
 
-The **MCP client** (runs on your laptop) communicates with the **API server** (runs alongside your IWP installation) over HTTPS with Bearer token authentication. The API reads from IWP's database and triggers updates through IWP's native execution pipeline.
+The **MCP client** runs on your machine and communicates with the **API server** (deployed alongside your IWP panel) over HTTPS with Bearer token authentication. The API reads from IWP's database and triggers updates through IWP's native signed request pipeline — the same mechanism IWP uses when you click "Update" in the panel.
+
+No database credentials ever leave the server.
 
 ## Directory Structure
 
 ```
 client/           MCP server (runs on your machine)
-  server.mjs      MCP tool definitions, connects via STDIO
+  server.mjs      MCP tool definitions, communicates via STDIO
   package.json    Node.js dependencies
 
 server/           API + helpers (deploy on your IWP server)
-  api.php         REST API backend
-  install.php     Database table creation
-  cron-runner.php Scheduled update executor
-  .htaccess       Security rules
+  api.php         REST API with token authentication
+  install.php     Creates additional database tables for scheduling
+  cron-runner.php Executes scheduled updates (called by cron)
+  .htaccess       Blocks web access to sensitive files
   mcp/
-    run-update.php      Trigger updates for a site
-    get-updates.php     Decode IWP stats into readable format
-    generate-report.php Retrieve IWP client reports
+    run-update.php      Triggers updates through IWP's pipeline
+    get-updates.php     Decodes IWP serialized stats into readable format
+    generate-report.php Retrieves IWP client reports
 ```
 
 ## Installation
@@ -78,6 +102,8 @@ server/           API + helpers (deploy on your IWP server)
    php install.php
    ```
 
+   This creates tables for scheduled updates, exceptions, execution logs, and update age tracking. It does not modify any existing IWP tables.
+
 3. **Set the API token** as an environment variable on your server:
 
    ```bash
@@ -92,11 +118,13 @@ server/           API + helpers (deploy on your IWP server)
    fastcgi_param IWP_SCHEDULER_TOKEN your-generated-token-here;
    ```
 
-4. **Set up the cron job** (recommended: every 5 minutes):
+4. **(Optional) Set up the cron job** for scheduled updates:
 
    ```bash
    */5 * * * * php /path/to/your/iwp-installation/scheduler/cron-runner.php >> /dev/null 2>&1
    ```
+
+   This is only needed if you want automatic scheduled updates. The MCP tools work without it.
 
 ### Client Side (Your Machine)
 
@@ -107,19 +135,13 @@ server/           API + helpers (deploy on your IWP server)
    npm install
    ```
 
-2. **Configure environment variables**:
+2. **Add to your MCP client configuration**:
 
-   ```bash
-   export IWP_API_URL="https://your-iwp-panel.example.com/scheduler/api.php"
-   export IWP_API_TOKEN="your-generated-token-here"
-   ```
-
-3. **Add to your MCP client configuration** (e.g. Claude Desktop `claude_desktop_config.json`):
-
+   **Claude Code** (`~/.claude/settings.json`):
    ```json
    {
      "mcpServers": {
-       "iwp-manager": {
+       "iwp": {
          "command": "node",
          "args": ["/path/to/client/server.mjs"],
          "env": {
@@ -131,20 +153,38 @@ server/           API + helpers (deploy on your IWP server)
    }
    ```
 
+   **Claude Desktop** (`claude_desktop_config.json`):
+   ```json
+   {
+     "mcpServers": {
+       "iwp": {
+         "command": "node",
+         "args": ["/path/to/client/server.mjs"],
+         "env": {
+           "IWP_API_URL": "https://your-iwp-panel.example.com/scheduler/api.php",
+           "IWP_API_TOKEN": "your-generated-token-here"
+         }
+       }
+     }
+   }
+   ```
+
+   **Cursor / VS Code**: Add the same configuration to your MCP settings.
+
 ## MCP Tools
 
 | Tool | Description |
 |------|-------------|
-| `dashboard` | Overview of all sites, updates, schedules, and exceptions |
-| `list_sites` | List managed WordPress sites with update status; supports filtering and search |
-| `site_details` | View details and available updates for a specific site |
-| `update_site` | Run updates on a site (plugins, themes, core, translations, or all) |
-| `list_schedules` | Show all scheduled update plans |
-| `list_exceptions` | Show all update exceptions |
+| `dashboard` | Overview of all sites, pending updates, active schedules, and exceptions |
+| `list_sites` | List managed WordPress sites with update counts; filter by status or search by name/URL |
+| `site_details` | View a specific site's details and all available updates (plugins, themes, core) |
+| `update_site` | Trigger updates on a site — choose plugins, themes, core, translations, or all |
+| `site_history` | Search IWP's native update history for a site; filter by plugin/theme name |
+| `list_schedules` | Show all configured automatic update schedules |
+| `list_exceptions` | Show plugins/themes excluded from automatic updates |
 | `add_exception` | Exclude a plugin or theme from automatic updates |
-| `remove_exception` | Remove an update exception |
-| `update_history` | View the scheduler's update execution log |
-| `site_history` | Search IWP's native update history for a site (filter by plugin/theme name) |
+| `remove_exception` | Re-enable automatic updates for a previously excluded plugin/theme |
+| `update_history` | View the scheduled update execution log (what ran, when, success/failure) |
 | `generate_report` | Retrieve the most recent IWP client report for a site |
 
 ## Configuration
@@ -153,30 +193,44 @@ server/           API + helpers (deploy on your IWP server)
 
 | Variable | Where | Required | Description |
 |----------|-------|----------|-------------|
-| `IWP_SCHEDULER_TOKEN` | Server | Yes | API authentication token (generate with `openssl rand -hex 32`) |
+| `IWP_SCHEDULER_TOKEN` | Server | Yes | API authentication token |
 | `IWP_API_URL` | Client | Yes | Full URL to the server's `api.php` |
 | `IWP_API_TOKEN` | Client | Yes | Must match `IWP_SCHEDULER_TOKEN` on the server |
 
 ### Timezone
 
-The scheduler uses `Europe/Amsterdam` by default. To change this, search for `Europe/Amsterdam` in `cron-runner.php` and `api.php` and replace with your timezone.
+The server uses `Europe/Amsterdam` by default. To change this, search for `Europe/Amsterdam` in `cron-runner.php` and `api.php` and replace with your timezone.
 
-## Security Notes
+## Security
 
-- The API token is the sole authentication mechanism for MCP/external access. Keep it secret.
-- The `.htaccess` file blocks web access to `install.php` and `cron.log`.
-- All API communication should be over HTTPS.
-- The server files require access to IWP's `config.php` and database -- deploy them only on your IWP server.
-- Never commit `.env` files or tokens to version control.
+- **Token authentication** — the API requires a Bearer token for all requests. Generate a strong token with `openssl rand -hex 32`.
+- **No credentials in the client** — the MCP server on your machine only knows the API URL and token. Database credentials stay on your IWP server.
+- **HTTPS required** — always run the API behind HTTPS.
+- **`.htaccess` protection** — blocks web access to `install.php` and log files.
+- **IWP's own signing** — updates are sent to WordPress sites using IWP's OpenSSL-signed request pipeline.
 
 ## Compatibility
 
-- **InfiniteWP Admin Panel**: v2.x (self-hosted)
-- **PHP**: 7.4+ (8.0+ recommended)
-- **Node.js**: 18+ (for the MCP client, uses native `fetch`)
-- **MySQL**: 5.7+ / MariaDB 10.3+
-- **MCP SDK**: `@modelcontextprotocol/sdk` v1.x
+### IWP
+- InfiniteWP Admin Panel v2.x (self-hosted)
+
+### Server Requirements
+- PHP 7.4+ (8.0+ recommended)
+- MySQL 5.7+ / MariaDB 10.3+
+
+### Client Requirements
+- Node.js 18+ (uses native `fetch`)
+- `@modelcontextprotocol/sdk` v1.x
+
+### Supported AI Tools
+- Claude Code / Claude Desktop
+- Cursor
+- VS Code (GitHub Copilot)
+- Windsurf
+- Cline
+- Continue.dev
+- Any MCP-compatible client
 
 ## License
 
-MIT -- see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
