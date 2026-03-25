@@ -13,7 +13,6 @@ Manage all your WordPress sites through AI chat. This project adds an **MCP (Mod
 - **Update history** -- full log of every update with status tracking
 - **IWP history search** -- query the native IWP update history (e.g. "when was WooCommerce last updated on site X?")
 - **Client reports** -- retrieve IWP-generated Phoenix template reports
-- **Web UI** -- optional browser-based scheduler dashboard
 
 ## Architecture
 
@@ -58,11 +57,6 @@ server/           API + helpers (deploy on your IWP server)
     run-update.php      Trigger updates for a site
     get-updates.php     Decode IWP stats into readable format
     generate-report.php Retrieve IWP client reports
-
-webapp/           Optional web-based scheduler UI
-  index.php       Single-page application
-  css/style.css   Styles
-  js/app.js       Frontend logic
 ```
 
 ## Installation
@@ -103,10 +97,6 @@ webapp/           Optional web-based scheduler UI
    ```bash
    */5 * * * * php /path/to/your/iwp-installation/scheduler/cron-runner.php >> /dev/null 2>&1
    ```
-
-5. **(Optional) Deploy the web UI**:
-
-   Copy `webapp/` alongside the `server/` directory, or host it separately. Update the `API` constant in `webapp/js/app.js` to point to your `api.php` URL.
 
 ### Client Side (Your Machine)
 
@@ -175,7 +165,6 @@ The scheduler uses `Europe/Amsterdam` by default. To change this, search for `Eu
 
 - The API token is the sole authentication mechanism for MCP/external access. Keep it secret.
 - The `.htaccess` file blocks web access to `install.php` and `cron.log`.
-- The web UI authenticates via IWP's existing admin credentials (cookie-based or session-based).
 - All API communication should be over HTTPS.
 - The server files require access to IWP's `config.php` and database -- deploy them only on your IWP server.
 - Never commit `.env` files or tokens to version control.
