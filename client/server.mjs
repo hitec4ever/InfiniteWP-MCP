@@ -236,7 +236,7 @@ server.tool(
 // === TOOL: Generate report =============================================
 server.tool(
   "generate_report",
-  "Retrieve the most recent IWP client report for a site. Returns a link to the HTML report.",
+  "Generate a client report for a site using IWP's professional template with your branding. Returns a link to the HTML report.",
   { site: z.string().describe("Site name, URL, or ID") },
   async ({ site }) => {
     const s = await findSite(site);
@@ -249,19 +249,13 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `## Report for ${result.site}\n\n**Link**: ${result.url}\n\n- Generated: ${result.generatedAt} (${result.age} ago)\n- Schedule: ${result.schedule}`,
+            text: `## Report for ${result.site}\n\n**Link**: ${result.url}\n\n- Template: ${result.template}\n- Plugin updates: ${result.pluginUpdates}\n- Theme updates: ${result.themeUpdates}\n- Core updates: ${result.coreUpdates}\n- Generated: ${result.generatedAt}`,
           },
         ],
       };
     }
 
-    let text = `No recent report found for **${s.name}**.`;
-    if (result.schedules?.length > 0) {
-      text += `\n\nSchedule(s) exist but no report has been generated yet. Use "Run Now" in the IWP panel.`;
-    } else {
-      text += `\n\nNo report schedule exists for this site. Create one in IWP under **Addons > Client Reporting**.`;
-    }
-    return { content: [{ type: "text", text }] };
+    return { content: [{ type: "text", text: `Failed to generate report: ${result.error || "unknown error"}` }] };
   }
 );
 
