@@ -17,8 +17,8 @@ Manage your WordPress sites through AI chat. This project adds an **MCP (Model C
 +------------------+         HTTPS/JSON         +---------------------------+
 |  AI Assistant    |  <--------------------->   |  IWP Server               |
 |  (Claude, etc.)  |                            |                           |
-|                  |    Bearer Token Auth       |  /scheduler/api.php       |
-|  client/         |                            |  /scheduler/mcp/          |
+|                  |    Bearer Token Auth       |  /mcp/api.php         |
+|  client/         |                            |  /mcp/helpers/            |
 |  server.mjs      |                            |    run-update.php         |
 |  (MCP over STDIO)|                            |    get-updates.php        |
 +------------------+                            |    generate-report.php    |
@@ -57,10 +57,10 @@ No database credentials ever leave your server.
 1. **Copy server files** into your InfiniteWP installation:
 
    ```bash
-   cp -r server/ /path/to/your/iwp-installation/scheduler/
+   cp -r server/ /path/to/your/iwp-installation/mcp/
    ```
 
-   The `scheduler/` directory should sit next to IWP's `config.php`.
+   The `mcp/` directory should sit next to IWP's `config.php`.
 
 2. **Set the API token** as an environment variable:
 
@@ -69,10 +69,10 @@ No database credentials ever leave your server.
    openssl rand -hex 32
 
    # Apache — add to .htaccess or vhost:
-   SetEnv IWP_SCHEDULER_TOKEN your-generated-token-here
+   SetEnv IWP_MCP_TOKEN your-generated-token-here
 
    # Nginx + PHP-FPM — add to server block:
-   fastcgi_param IWP_SCHEDULER_TOKEN your-generated-token-here;
+   fastcgi_param IWP_MCP_TOKEN your-generated-token-here;
    ```
 
 ### Client Side (Your Machine)
@@ -94,7 +94,7 @@ No database credentials ever leave your server.
          "command": "node",
          "args": ["/path/to/client/server.mjs"],
          "env": {
-           "IWP_API_URL": "https://your-iwp-panel.example.com/scheduler/api.php",
+           "IWP_API_URL": "https://your-iwp-panel.example.com/mcp/api.php",
            "IWP_API_TOKEN": "your-generated-token-here"
          }
        }
@@ -110,9 +110,9 @@ No database credentials ever leave your server.
 
 | Variable | Where | Required | Description |
 |----------|-------|----------|-------------|
-| `IWP_SCHEDULER_TOKEN` | Server | Yes | API authentication token |
+| `IWP_MCP_TOKEN` | Server | Yes | API authentication token |
 | `IWP_API_URL` | Client | Yes | Full URL to `api.php` on your server |
-| `IWP_API_TOKEN` | Client | Yes | Must match `IWP_SCHEDULER_TOKEN` |
+| `IWP_API_TOKEN` | Client | Yes | Must match `IWP_MCP_TOKEN` |
 
 ## Security
 

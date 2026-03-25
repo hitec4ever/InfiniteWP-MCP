@@ -4,7 +4,7 @@
  *
  * Provides a JSON API on top of the IWP database for the
  * MCP client. Must be placed inside your IWP installation
- * directory (e.g. /scheduler/api.php).
+ * directory (e.g. /mcp/api.php).
  ************************************************************/
 
 session_start();
@@ -29,10 +29,10 @@ if ($db->connect_error) {
 $db->set_charset('utf8mb4');
 $prefix = $config['SQL_TABLE_NAME_PREFIX'];
 
-// API token — set via environment variable IWP_SCHEDULER_TOKEN
-$envToken = getenv('IWP_SCHEDULER_TOKEN');
+// API token — set via environment variable IWP_MCP_TOKEN
+$envToken = getenv('IWP_MCP_TOKEN');
 if (!$envToken) {
-    error_log('IWP_SCHEDULER_TOKEN env var is not set. Token-based API access will be unavailable.');
+    error_log('IWP_MCP_TOKEN env var is not set. Token-based API access will be unavailable.');
 }
 define('API_TOKEN', $envToken ?: '');
 
@@ -64,7 +64,7 @@ function checkAuth($db, $prefix) {
             }
         }
     }
-    if (!empty($_SESSION['scheduler_auth'])) {
+    if (!empty($_SESSION['mcp_auth'])) {
         return true;
     }
     return false;
@@ -213,7 +213,7 @@ function runSiteUpdate($db, $prefix) {
     if (!empty($slugs)) $args .= ' --slugs=' . escapeshellarg(implode(',', $slugs));
     if (!empty($exclude)) $args .= ' --exclude=' . escapeshellarg(implode(',', $exclude));
 
-    $output = shell_exec("php $root/scheduler/mcp/run-update.php $args 2>&1");
+    $output = shell_exec("php $root/mcp/helpers/run-update.php $args 2>&1");
     echo json_encode(['success' => true, 'output' => $output]);
 }
 
@@ -288,7 +288,7 @@ function generateReport() {
     }
 
     $root = APP_ROOT;
-    $output = shell_exec("php $root/scheduler/mcp/generate-report.php " . escapeshellarg($siteId) . " 2>&1");
+    $output = shell_exec("php $root/mcp/helpers/generate-report.php " . escapeshellarg($siteId) . " 2>&1");
     $cleaned = preg_replace('/^(PHP\s|Deprecated|Warning|Notice).*\n/m', '', $output);
     echo trim($cleaned);
 }

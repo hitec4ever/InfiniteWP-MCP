@@ -9,7 +9,7 @@
  *
  * Required env vars:
  *   IWP_API_URL   - Full URL to api.php on your IWP server
- *   IWP_API_TOKEN - Bearer token (must match server-side IWP_SCHEDULER_TOKEN)
+ *   IWP_API_TOKEN - Bearer token (must match server-side IWP_MCP_TOKEN)
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -20,7 +20,7 @@ const API_URL = process.env.IWP_API_URL;
 const API_TOKEN = process.env.IWP_API_TOKEN;
 
 if (!API_URL) {
-  console.error("IWP_API_URL is required (e.g. https://your-iwp-panel.example.com/scheduler/api.php)");
+  console.error("IWP_API_URL is required (e.g. https://your-iwp-panel.example.com/mcp/api.php)");
   process.exit(1);
 }
 if (!API_TOKEN) {
