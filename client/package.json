@@ -1,0 +1,10 @@
+{
+  "name": "iwp-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for managing WordPress sites via InfiniteWP",
+  "type": "module",
+  "main": "server.mjs",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

@@ -1,0 +1,11 @@
+# Protect install script from web access
+<Files "install.php">
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+# Protect log file from web access
+<Files "cron.log">
+    Order Deny,Allow
+    Deny from all
+</Files>
